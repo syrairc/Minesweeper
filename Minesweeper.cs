@@ -312,15 +312,17 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
                 }
             }
 
-            // Draw price text in the bottom left inside the rectangle
-            string currency = string.IsNullOrEmpty(item.CurrencyType) ? "" : char.ToLower(item.CurrencyType[0]).ToString();
-            var text = $"{item.Price}{currency}";
-            var textSize = Graphics.MeasureText(text);
-            var textPos = new Vector2(itemPos.X + 2, itemPos.Y + itemSize.Y - textSize.Y - 2);
-            Graphics.DrawTextWithBackground(text, textPos, color, Color.Black);
-            
+            if (Settings.ShowItemPrices)
+            {
+                // Draw price text in the bottom left inside the rectangle
+                string currency = string.IsNullOrEmpty(item.CurrencyType) ? "" : char.ToLower(item.CurrencyType[0]).ToString();
+                var text = $"{item.Price}{currency}";
+                var textSize = Graphics.MeasureText(text);
+                var textPos = new Vector2(itemPos.X + 2, itemPos.Y + itemSize.Y - textSize.Y - 2);
+                Graphics.DrawTextWithBackground(text, textPos, color, Color.Black);
+            }            
 
-            if (inPlayerShop || (!Settings.WarnBasedOnMedianPrice && !Settings.WarnBasedOnTargetPrice))
+            if (inPlayerShop || (!Settings.WarnBasedOnMedianPrice && !Settings.WarnBasedOnTargetPrice) || !Settings.ShowLandmineBorders)
                 continue;
 
             // Draw border if price exceeds median or target price thresholds (if enabled)
