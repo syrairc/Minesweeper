@@ -319,13 +319,13 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
             var textPos = new Vector2(itemPos.X + 2, itemPos.Y + itemSize.Y - textSize.Y - 2);
             Graphics.DrawTextWithBackground(text, textPos, color, Color.Black);
             
-            if (inPlayerShop) // Don't draw borders for our own items
+
+            if (inPlayerShop || (!Settings.WarnBasedOnMedianPrice && !Settings.WarnBasedOnTargetPrice))
                 continue;
 
             // Draw border if price exceeds median or target price thresholds (if enabled)
             bool drawBorder = false;
             Color borderColor = color;
-
 
             // Target price threshold
             if (Settings.WarnBasedOnTargetPrice && _targetPrice > 0)
@@ -342,15 +342,11 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
                     drawBorder = true;
             }
 
-
-
             if (drawBorder)
             {
                 var borderRect = new RectangleF(itemPos.X - 1, itemPos.Y - 1, itemSize.X + 2, itemSize.Y + 2);
                 Graphics.DrawFrame(borderRect, borderColor, Settings.LandmineBorderThickness.Value);
             }
-            // Debug rendered item, target price, median price, and difference between item price and target/median price
-            //DebugLog($"Rendered item at {itemPos} with price {item.PriceInChaos} chaos. Target price: {_targetPrice} chaos, Median price: {_medianPrice} chaos, Difference from target: {item.PriceInChaos - _targetPrice} chaos, Difference from median: {item.PriceInChaos - _medianPrice} chaos");
         }
 
     }
@@ -363,8 +359,16 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
         try
         {
             var _newHover = GameController?.Game?.IngameState?.UIHover;
-            var offlineMerchantPanel = GameController?.Game?.IngameState?.IngameUi?.OfflineMerchantPanel;
-            bool isInOfflineMerchant = offlineMerchantPanel != null && offlineMerchantPanel.IsVisibleLocal && _newHover.GetParentChain().Any(e => e.Address == offlineMerchantPanel.Address);
+            Inventory merchantWindow = null;
+            var offlineMerchant = GameController?.Game?.IngameState?.IngameUi?.OfflineMerchantPanel?.VisibleStash;
+            var purchaseWindow = GameController?.Game?.IngameState?.IngameUi?.PurchaseWindow?.TabContainer?.VisibleStash;
+
+            if (offlineMerchant != null && offlineMerchant.IsVisibleLocal)
+                merchantWindow = offlineMerchant;
+            else if (purchaseWindow != null && purchaseWindow.IsVisibleLocal)
+                merchantWindow = purchaseWindow;
+
+            bool isInOfflineMerchant = merchantWindow != null && merchantWindow.IsVisibleLocal && _newHover.GetParentChain().Any(e => e.Address == merchantWindow.Address);
 
             if (_newHover is { } &&
                 isInOfflineMerchant &&
@@ -379,18 +383,14 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
                 }
                 if (isDifferentItem)
                 {
-                    DebugLog($"New UIHover element found: {newHoverIcon.Address:X}, old address was {((uiHover as HoverItemIcon)?.Address ?? 0):X}");
                     uiHover = newHoverIcon;
                     IsItALandmine(uiHover);
                 }
             }
             else
             {
-                if (uiHover != null)
-                {
+                if (uiHover != null)                
                     uiHover = null;
-                    DebugLog("UIHover element reset.");
-                }
             }
         }
         catch (Exception ex)
@@ -435,7 +435,6 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
                 }
             }
         }
-        DebugLog($"Hovered element: {hover.GetHashCode()}");
     }
 
     private void PlayStartupSound()
@@ -444,12 +443,10 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
         if (!Settings.PlayStartupSound || now - _lastStartupSoundTimeUtcMs < 5000)
             return;
 
-        DebugLog("Attempting to play startup sound...");
         string startupSoundFile = Path.Join(ConfigDirectory, "start.wav");
         if (File.Exists(startupSoundFile))
             GameController.SoundController.PlaySound(startupSoundFile, Settings.StartupSoundVolume.Value);
 
-        DebugLog("Played startup sound.");
         _lastStartupSoundTimeUtcMs = now;
     }
     private void PlayLandmineSound()
@@ -457,14 +454,11 @@ public partial class Minesweeper : BaseSettingsPlugin<MinesweeperSettings>
         long now = Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency;
         if (!Settings.PlayLandmineSound || now - _lastLandmineSoundTimeUtcMs < 2000)
             return;
-        
-        DebugLog("Attempting to play landmine sound...");
 
         string landmineSoundFile = Path.Join(ConfigDirectory, "lose_minesweeper.wav");
         if (File.Exists(landmineSoundFile))            
             GameController.SoundController.PlaySound(landmineSoundFile, Settings.LandmineSoundVolume.Value);
-        
-        DebugLog("Played landmine sound.");
+
         _lastLandmineSoundTimeUtcMs = now;
     }
     
